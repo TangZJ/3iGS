@@ -1,5 +1,6 @@
 # [ECCV2024]: 3iGS: 
 
+*** This repo is still under work ***
 
 The repo contains the sample code for the paper:
 
