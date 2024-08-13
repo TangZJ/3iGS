@@ -6,6 +6,8 @@ The repo contains the sample code for the paper:
 
 [ECCV2024]: 3iGS
 
+https://arxiv.org/abs/2408.03753
+
 
 ## Table of Contents
 
