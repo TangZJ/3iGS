@@ -106,13 +106,10 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
             else:
                 brdf = pc.get_features.transpose(1, 2).view(-1, 3, (pc.max_sh_degree+1)**2)
                 local_light = pc.get_local_lighting(pc.get_xyz).reshape(pc.get_features.shape).transpose(1,2)
-                #st()
                 out_light = brdf * local_light 
                 dir_pp = (pc.get_xyz - viewpoint_camera.camera_center.repeat(pc.get_features.shape[0], 1))
                 dir_pp_normalized = dir_pp/dir_pp.norm(dim=1, keepdim=True)
-                #tintrough = torch.sigmoid(pc.get_tint)
-                #tint = torch.sigmoid(tintrough[:,:3])
-                #roughness = torch.nn.functional.softplus(tintrough[:,-1] - 1.0)
+
                 
                 roughness = pc.get_roughness
 
@@ -132,15 +129,10 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
                 base = pc.get_base_colour
                 three = torch.tensor(3.0, dtype=torch.float32).to("cuda")
                 diffuse_linear = torch.sigmoid(base - torch.log(three))
-                #fresnel = fresnel * 0.3
                 rgb = spec + diffuse_linear
-                #rgb =  spec * (1 + fresnel) +  diffuse_linear * (1 - fresnel)
 
-                #rgb = torch.clip(rgb, 0.0, 1.0)
                 rgb = torch.clip(rgb, 0.0, 1.0)
-                #rgb = torch.clip(linear_to_srgb(rgb), 0.0, 1.0)
                 colors_precomp = rgb 
-                #colors_precomp = torch.clamp_min(sh2rgb + 0.5, 0.0)
         else:
             brdf = pc.get_features.transpose(1, 2).view(-1, 3, (pc.max_sh_degree+1)**2)
             local_light = pc.get_local_lighting(pc.get_xyz).reshape(pc.get_features.shape).transpose(1,2)
@@ -162,86 +154,11 @@ def render(viewpoint_camera, pc : GaussianModel, pipe, bg_color : torch.Tensor, 
         scales = scales,
         rotations = rotations,
         cov3D_precomp = cov3D_precomp)
-    """
-    diffuse = rasterizer(
-        means3D = means3D,
-        means2D = means2D,
-        shs = shs,
-        colors_precomp = diffuse_linear,
-        opacities = opacity,
-        scales = scales,
-        rotations = rotations,
-        cov3D_precomp = cov3D_precomp)[0]
-    
-    """
+ 
 
     # extra alphas
     out_extra = {"alpha":None}
     
-    """
-    norm_alpha = False
-    if norm_alpha:
-
-        raster_settings_alpha = GaussianRasterizationSettings(
-            image_height=int(viewpoint_camera.image_height),
-            image_width=int(viewpoint_camera.image_width),
-            tanfovx=tanfovx,
-            tanfovy=tanfovy,
-            bg=torch.tensor([0,0,0], dtype=torch.float32, device="cuda"),
-            scale_modifier=scaling_modifier,
-            viewmatrix=viewpoint_camera.world_view_transform,
-            projmatrix=viewpoint_camera.full_proj_transform,
-            sh_degree=pc.active_sh_degree,
-            campos=viewpoint_camera.camera_center,
-            prefiltered=False,
-            debug=False
-        )
-        rasterizer_alpha = GaussianRasterizer(raster_settings=raster_settings_alpha)
-        alpha = torch.ones_like(means3D)        
-        out_extra["alpha"] =  rasterizer_alpha(
-            means3D = means3D,
-            means2D = means2D,
-            shs = None,
-            colors_precomp = alpha,
-            opacities = opacity,
-            scales = scales,
-            rotations = rotations,
-            cov3D_precomp = cov3D_precomp)[0]
-        
-    norm_pred = False
-    if norm_pred:
-        
-        norm_pred = 0.5 * norm_pred + 0.5 # change to 0,1 range
-        out_extra["pred_norm"] = rasterizer(
-            means3D = means3D,
-            means2D = means2D,
-            shs = None,
-            colors_precomp = norm_pred,
-            opacities = opacity,
-            scales = scales,
-            rotations = rotations,
-            cov3D_precomp = cov3D_precomp)[0]
-        out_extra["pred_norm"] =  (out_extra["pred_norm"] - 0.5 ) * 2.0 # change back to -1,1
-
-        p_hom = torch.cat([pc.get_xyz, torch.ones_like(pc.get_xyz[...,:1])], -1).unsqueeze(-1)
-        p_view = torch.matmul(viewpoint_camera.world_view_transform.transpose(0,1), p_hom)
-        p_view = p_view[...,:3,:]
-        depth = p_view.squeeze()[...,2:3]
-        depth = depth.repeat(1,3)
-
-        out_extra["depth"] = rasterizer(
-                means3D = means3D,
-                means2D = means2D,
-                shs = None,
-                colors_precomp = depth,
-                opacities = opacity,
-                scales = scales,
-                rotations = rotations,
-                cov3D_precomp = cov3D_precomp)[0]
-
-        out_extra["normal_ref"] = render_normal(viewpoint_cam=viewpoint_camera, depth=out_extra['depth'][0], bg_color=bg_color, alpha=out_extra['alpha'][0])
-
-    """
     out = {"render": rendered_image,
             "diffuse_image": None,
             "viewspace_points": screenspace_points,
